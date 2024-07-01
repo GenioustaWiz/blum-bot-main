@@ -108,7 +108,7 @@ while True:
     pixel_found = False
 
     # Scan the window for specific pixel colors with reduced step size for accuracy
-    step = 25  # Reduce step size to scan more pixels
+    step = 20  # Reduce step size to scan more pixels
     for x in range(0, width, step):
         for y in range(0, height, step):
             r, g, b = scrn.getpixel((x, y))
@@ -139,5 +139,5 @@ while True:
                 print("Exiting the autoclicker. Goodbye!")
                 exit()
 
-    time.sleep(0.0001)  # Adjust sleep for CPU usage gives abt 200 Blum points
+    # time.sleep(0.0001)  # Adjust sleep for CPU usage gives abt 200 Blum points
     # time.sleep(0.001)

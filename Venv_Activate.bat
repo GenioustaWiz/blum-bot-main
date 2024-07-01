@@ -1,0 +1,1 @@
+start E:\Documents\projects\Python_Projects\Scripts\blum-bot-main\venv\Scripts\activate

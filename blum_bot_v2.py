@@ -19,6 +19,7 @@ class AutoClickerApp:
         self.no_pixel_found_duration = 0
         self.sleep_enabled = False
         self.sleep_time = 0.001  # Default sleep time
+        self.step_size = 20  # Default step size
         self.telegram_window = None
 
         # Create UI elements
@@ -77,6 +78,25 @@ class AutoClickerApp:
         self.save_sleep_time_button = tk.Button(self.root, text="Save Sleep Time", command=self.save_sleep_time)
         self.save_sleep_time_button.pack()
 
+        # Step size settings
+        step_info = (
+            "Preferred step size is 20 for maximum performance.\n"
+            "Higher step size means fewer cards will be tapped.\n"
+            "Lower step size means more cards will be tapped, but it's riskier because of higher probability of tapping bombs."
+        )
+        step_info_label = tk.Label(self.root, text=step_info, font=("Courier", 10))
+        step_info_label.pack()
+
+        self.step_size_label = tk.Label(self.root, text="Step size:")
+        self.step_size_label.pack()
+
+        self.step_size_entry = tk.Entry(self.root)
+        self.step_size_entry.pack()
+        self.step_size_entry.insert(0, str(self.step_size))
+
+        self.save_step_size_button = tk.Button(self.root, text="Save Step Size", command=self.save_step_size)
+        self.save_step_size_button.pack()
+
     def auth_checks(self):
         if not self.check_telegram_open():
             if not self.ask_retry_scan():
@@ -91,13 +111,13 @@ class AutoClickerApp:
         return bool(self.telegram_window)
 
     def ask_retry_scan(self):
-        retry = tk.messagebox.askretrycancel("Error", "TelegramDesktop not found. Please open it and try again.")
+        retry = messagebox.askretrycancel("Error", "TelegramDesktop not found. Please open it and try again.")
         if retry:
             return self.check_telegram_open()
         return False
 
     def check_blum_bot_open(self):
-        response = tk.messagebox.askyesno("Blum Bot", "Is the Blum Bot screen visible in TelegramDesktop?")
+        response = messagebox.askyesno("Blum Bot", "Is the Blum Bot screen visible in TelegramDesktop?")
         return response
 
     def toggle_sleep(self):
@@ -106,9 +126,16 @@ class AutoClickerApp:
     def save_sleep_time(self):
         try:
             self.sleep_time = float(self.sleep_time_entry.get())
-            tk.messagebox.showinfo("Success", f"Sleep time set to {self.sleep_time} seconds.")
+            messagebox.showinfo("Success", f"Sleep time set to {self.sleep_time} seconds.")
         except ValueError:
-            tk.messagebox.showerror("Error", "Invalid sleep time. Please enter a valid number.")
+            messagebox.showerror("Error", "Invalid sleep time. Please enter a valid number.")
+
+    def save_step_size(self):
+        try:
+            self.step_size = int(self.step_size_entry.get())
+            messagebox.showinfo("Success", f"Step size set to {self.step_size}.")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid step size. Please enter a valid number.")
 
     def start_bot(self):
         self.paused = False
@@ -138,12 +165,12 @@ class AutoClickerApp:
 
         while not self.paused:
             if keyboard.is_pressed('Shift+X'):
-                tk.messagebox.showinfo("Exiting", "Exiting the autoclicker. Goodbye!")
+                messagebox.showinfo("Exiting", "Exiting the autoclicker. Goodbye!")
                 self.root.quit()
 
             if keyboard.is_pressed('Shift+P'):
                 self.pause_bot()
-                tk.messagebox.showinfo("Paused", "Bot paused. Press 'Start' or Shift+S to continue.")
+                messagebox.showinfo("Paused", "Bot paused. Press 'Start' or Shift+S to continue.")
                 break
 
             window_rect = (
@@ -162,9 +189,8 @@ class AutoClickerApp:
             width, height = scrn.size
             pixel_found = False
 
-            step = 20
-            for x in range(0, width, step):
-                for y in range(0, height, step):
+            for x in range(0, width, self.step_size):
+                for y in range(0, height, self.step_size):
                     r, g, b = scrn.getpixel((x, y))
                     if (b in range(0, 125)) and (r in range(102, 220)) and (g in range(200, 255)):
                         screen_x = window_rect[0] + x
@@ -179,7 +205,7 @@ class AutoClickerApp:
 
             if self.no_pixel_found_duration >= 10:
                 self.pause_bot()
-                tk.messagebox.showinfo("Auto-paused", "Bot auto-paused... No target pixels found. Press 'Start' or Shift+S to continue.")
+                messagebox.showinfo("Auto-paused", "Bot auto-paused... No target pixels found. Press 'Start' or Shift+S to continue.")
                 self.no_pixel_found_duration = 0
                 break
 
@@ -200,3 +226,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = AutoClickerApp(root)
     root.mainloop()
+

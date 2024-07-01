@@ -13,12 +13,12 @@ mouse = Controller()
 class AutoClickerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("AutoClicker App")
+        self.root.title("Blum AutoFarming App")
 
         self.paused = True
         self.no_pixel_found_duration = 0
         self.sleep_enabled = False
-        self.sleep_time = 0.001  # Default sleep time
+        self.sleep_time = 0.0001  # Default sleep time
         self.step_size = 20  # Default step size
         self.telegram_window = None
 

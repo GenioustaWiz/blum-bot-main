@@ -112,7 +112,7 @@ while True:
     for x in range(0, width, step):
         for y in range(0, height, step):
             r, g, b = scrn.getpixel((x, y))
-            if (b in range(180, 220)) and (g in range(180, 220)) and (r in range(max(g + 10, 200), 230)):
+            if (b in range(0, 125)) and (r in range(102, 220)) and (g in range(200, 255)): #Green
                 screen_x = window_rect[0] + x
                 screen_y = window_rect[1] + y
                 click(screen_x + 4, screen_y)

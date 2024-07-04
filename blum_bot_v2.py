@@ -1,5 +1,3 @@
-import tkinter as tk
-from tkinter import messagebox
 from pyautogui import screenshot
 import pygetwindow as gw
 import time
@@ -10,220 +8,144 @@ from pynput.mouse import Button, Controller
 # Initialize mouse controller
 mouse = Controller()
 
-class AutoClickerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Blum AutoFarming App")
-
-        self.paused = True
-        self.no_pixel_found_duration = 0
-        self.sleep_enabled = False
-        self.sleep_time = 0.0001  # Default sleep time
-        self.step_size = 20  # Default step size
-        self.telegram_window = None
-
-        # Create UI elements
-        self.create_ui()
-
-        # Bind keyboard shortcuts
-        self.root.bind('<Shift-S>', lambda event: self.start_bot())
-        self.root.bind('<Shift-P>', lambda event: self.pause_bot())
-        self.root.bind('<Shift-X>', lambda event: self.exit_bot())
-
-        # Initial authentication checks
-        self.auth_checks()
-
-    def create_ui(self):
-        # Greeting
-        greeting = """
+# Function to print a greeting message
+def display_greeting():
+    print("""
   |      |                         |             |   
   __ \   |  |   |  __ `__ \        __ \    _ \   __| 
   |   |  |  |   |  |   |   | ____|  |   |  (   |  |   
   _.__/  _| \__,_| _|  _|  _|       _.__/  \___/  \__| 
-        """
-        greeting_label = tk.Label(self.root, text=greeting, font=("Courier", 10))
-        greeting_label.pack()
+    """)
 
-        # Author info
-        author_info = (
-            "Author: Geniousta\n"
-            "Contact me on telegram: Geniousta\n"
-            "Support Me (TON Wallet Address): UQC1ZJYba20_P_35Hevr_vHj3CztfQePJjCGam6s00xU9h4I\n"
+# Display greeting and author info
+display_greeting()
+print("Author: Geniousta")
+print("Contact me on telegram: Geniousta")
+print("Support Me (TON Wallet Address): UQC1ZJYba20_P_35Hevr_vHj3CztfQePJjCGam6s00xU9h4I ")
+print()
+
+# Authentication Step 1: Warning
+print("Note: For the bot to work, you'll need to have TelegramDesktop installed and open on your computer.")
+response = input("Enter '1' if you have TelegramDesktop open: ")
+
+if response != '1':
+    print("Please make sure TelegramDesktop is installed and open before running the bot.")
+    exit()
+
+# Check if TelegramDesktop window is open
+window_name = "TelegramDesktop"
+check = gw.getWindowsWithTitle(window_name)
+if not check:
+    print("[>] | TelegramDesktop window not found! Please open TelegramDesktop and try again.")
+    exit()
+
+# Authentication Step 2: Check for Blum Bot screen
+response = input("Enter '1' if you have the Blum Bot screen visible in TelegramDesktop: ")
+
+if response != '1':
+    print("Please make sure the Blum Bot screen is visible in TelegramDesktop.")
+    exit()
+
+# Confirm readiness to start the bot
+response = input("Press 'S' to start the autoclicker: ")
+
+if response.lower() != 's':
+    print("Autoclicker not started. Exiting.")
+    exit()
+
+telegram_window = check[0]
+paused = False
+no_pixel_found_duration = 0
+
+# Function to click at a specific position
+def click(x, y):
+    mouse.position = (x, y + random.randint(1, 3))
+    mouse.press(Button.left)
+    mouse.release(Button.left)
+
+print("Bot started. Press 'P' to pause, 'S' to start again, and 'X' to exit.")
+
+while True:
+    # Exit the program when 'X' is pressed
+    if keyboard.is_pressed('X'):
+        print("Exiting the autoclicker. Goodbye!")
+        exit()
+
+    # Toggle pause when 'P' is pressed
+    if keyboard.is_pressed('P'):
+        paused = True
+        print("Bot paused... Press 'S' to continue or 'X' to exit.")
+        while True:
+            if keyboard.is_pressed('S'):
+                paused = False
+                print("Bot continue working... Press 'P' to pause again.")
+                time.sleep(0.2)
+                break
+            if keyboard.is_pressed('X'):
+                print("Exiting the autoclicker. Goodbye!")
+                exit()
+
+    if paused:
+        continue
+
+    # Get the window dimensions
+    try:
+        window_rect = (
+            telegram_window.left, telegram_window.top, telegram_window.width, telegram_window.height
         )
-        author_label = tk.Label(self.root, text=author_info, font=("Courier", 10))
-        author_label.pack()
+    except gw.PyGetWindowException as e:
+        print(f"Error accessing TelegramDesktop window: {e}")
+        print("Please ensure TelegramDesktop is open and the Blum Bot screen is visible.")
+        exit()
 
-        # Buttons and shortcuts
-        self.start_button = tk.Button(self.root, text="Start (Shift+S)", command=self.start_bot, bg="grey")
-        self.start_button.pack()
-
-        self.pause_button = tk.Button(self.root, text="Pause (Shift+P)", command=self.pause_bot, bg="grey")
-        self.pause_button.pack()
-
-        self.exit_button = tk.Button(self.root, text="Exit (Shift+X)", command=self.exit_bot)
-        self.exit_button.pack()
-
-        # Sleep settings
-        self.sleep_var = tk.BooleanVar()
-        self.sleep_check = tk.Checkbutton(self.root, text="Enable sleep", variable=self.sleep_var, command=self.toggle_sleep)
-        self.sleep_check.pack()
-
-        self.sleep_time_label = tk.Label(self.root, text="Sleep time (seconds):")
-        self.sleep_time_label.pack()
-
-        self.sleep_time_entry = tk.Entry(self.root)
-        self.sleep_time_entry.pack()
-        self.sleep_time_entry.insert(0, str(self.sleep_time))
-
-        self.save_sleep_time_button = tk.Button(self.root, text="Save Sleep Time", command=self.save_sleep_time)
-        self.save_sleep_time_button.pack()
-
-        # Step size settings
-        step_info = (
-            "Preferred step size is 20 for maximum performance.\n"
-            "Higher step size means fewer cards will be tapped.\n"
-            "Lower step size means more cards will be tapped, but it's riskier because of higher probability of tapping bombs."
-        )
-        step_info_label = tk.Label(self.root, text=step_info, font=("Courier", 10))
-        step_info_label.pack()
-
-        self.step_size_label = tk.Label(self.root, text="Step size:")
-        self.step_size_label.pack()
-
-        self.step_size_entry = tk.Entry(self.root)
-        self.step_size_entry.pack()
-        self.step_size_entry.insert(0, str(self.step_size))
-
-        self.save_step_size_button = tk.Button(self.root, text="Save Step Size", command=self.save_step_size)
-        self.save_step_size_button.pack()
-
-    def auth_checks(self):
-        if not self.check_telegram_open():
-            if not self.ask_retry_scan():
-                self.root.quit()
-
-        if not self.check_blum_bot_open():
-            self.root.quit()
-
-    def check_telegram_open(self):
-        window_name = "TelegramDesktop"
-        self.telegram_window = gw.getWindowsWithTitle(window_name)
-        return bool(self.telegram_window)
-
-    def ask_retry_scan(self):
-        retry = messagebox.askretrycancel("Error", "TelegramDesktop not found. Please open it and try again.")
-        if retry:
-            return self.check_telegram_open()
-        return False
-
-    def check_blum_bot_open(self):
-        response = messagebox.askyesno("Blum Bot", "Is the Blum Bot screen visible in TelegramDesktop?")
-        return response
-
-    def toggle_sleep(self):
-        self.sleep_enabled = self.sleep_var.get()
-
-    def save_sleep_time(self):
+    # Activate the window
+    if telegram_window:
         try:
-            self.sleep_time = float(self.sleep_time_entry.get())
-            messagebox.showinfo("Success", f"Sleep time set to {self.sleep_time} seconds.")
-        except ValueError:
-            messagebox.showerror("Error", "Invalid sleep time. Please enter a valid number.")
+            telegram_window.activate()
+        except Exception as e:
+            print(f"Error activating TelegramDesktop window: {e}")
+            telegram_window.minimize()
+            telegram_window.restore()
 
-    def save_step_size(self):
-        try:
-            self.step_size = int(self.step_size_entry.get())
-            messagebox.showinfo("Success", f"Step size set to {self.step_size}.")
-        except ValueError:
-            messagebox.showerror("Error", "Invalid step size. Please enter a valid number.")
+    # Take a screenshot of the window
+    scrn = screenshot(region=(window_rect[0], window_rect[1], window_rect[2], window_rect[3]))
 
-    def start_bot(self):
-        self.paused = False
-        self.update_button_states()
-        self.run_bot()
+    width, height = scrn.size
+    pixel_found = False
 
-    def pause_bot(self):
-        self.paused = True
-        self.update_button_states()
-
-    def exit_bot(self):
-        self.root.quit()
-
-    def update_button_states(self):
-        if self.paused:
-            self.start_button.config(bg="green")
-            self.pause_button.config(bg="grey")
-        else:
-            self.start_button.config(bg="grey")
-            self.pause_button.config(bg="green")
-
-    def run_bot(self):
-        if not self.telegram_window:
-            return
-
-        telegram_window = self.telegram_window[0]
-
-        while not self.paused:
-            if keyboard.is_pressed('Shift+X'):
-                messagebox.showinfo("Exiting", "Exiting the autoclicker. Goodbye!")
-                self.root.quit()
-
-            if keyboard.is_pressed('Shift+P'):
-                self.pause_bot()
-                messagebox.showinfo("Paused", "Bot paused. Press 'Start' or Shift+S to continue.")
+    # Scan the window for specific pixel colors with reduced step size for accuracy
+    step = 20  # Reduce step size to scan more pixels
+    for x in range(0, width, step):
+        for y in range(0, height, step):
+            r, g, b = scrn.getpixel((x, y))
+            # Check for red, and silver colors
+            if ((r in range(100, 255)) and (g in range(0, 80)) and (b in range(150, 200)) or # pink
+                (b in range(200, 230)) and (g in range(200, 220)) and (r in range(200, 230))):  # Silver
+                screen_x = window_rect[0] + x
+                screen_y = window_rect[1] + y
+                click(screen_x + 4, screen_y)
+                pixel_found = True
+                no_pixel_found_duration = 0
                 break
 
-            window_rect = (
-                telegram_window.left, telegram_window.top, telegram_window.width, telegram_window.height
-            )
+    # If no pixel is found, increment the duration counter
+    if not pixel_found:
+        no_pixel_found_duration += 0.1
 
-            if telegram_window:
-                try:
-                    telegram_window.activate()
-                except:
-                    telegram_window.minimize()
-                    telegram_window.restore()
-
-            scrn = screenshot(region=(window_rect[0], window_rect[1], window_rect[2], window_rect[3]))
-
-            width, height = scrn.size
-            pixel_found = False
-
-            for x in range(0, width, self.step_size):
-                for y in range(0, height, self.step_size):
-                    r, g, b = scrn.getpixel((x, y))
-                    if (b in range(0, 125)) and (r in range(102, 220)) and (g in range(200, 255)):
-                        screen_x = window_rect[0] + x
-                        screen_y = window_rect[1] + y
-                        self.click(screen_x + 4, screen_y)
-                        pixel_found = True
-                        self.no_pixel_found_duration = 0
-                        break
-
-            if not pixel_found:
-                self.no_pixel_found_duration += 0.1
-
-            if self.no_pixel_found_duration >= 10:
-                self.pause_bot()
-                messagebox.showinfo("Auto-paused", "Bot auto-paused... No target pixels found. Press 'Start' or Shift+S to continue.")
-                self.no_pixel_found_duration = 0
+    # Auto-pause if no pixel is found for more than 2 seconds
+    if no_pixel_found_duration >= 10:
+        paused = True
+        print("Bot auto-paused... No target pixels found. Press 'S' to continue.")
+        no_pixel_found_duration = 0
+        while True:
+            if keyboard.is_pressed('S'):
+                paused = False
+                print("Bot continue working... Press 'P' to pause again.")
+                time.sleep(0.2)
                 break
+            if keyboard.is_pressed('X'):
+                print("Exiting the autoclicker. Goodbye!")
+                exit()
 
-            if self.sleep_enabled:
-                time.sleep(self.sleep_time)
-            else:
-                time.sleep(0.001)
-
-        if not self.paused:
-            self.root.after(100, self.run_bot)
-
-    def click(self, x, y):
-        mouse.position = (x, y + random.randint(1, 3))
-        mouse.press(Button.left)
-        mouse.release(Button.left)
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = AutoClickerApp(root)
-    root.mainloop()
-
+    # time.sleep(0.0001)  # Adjust sleep for CPU usage gives abt 200 Blum points
+    # time.sleep(0.001)
